@@ -11,6 +11,10 @@ let streak = 0;
 let chestW = 0;
 let chestH = 0;
 
+let lastSentBrightness = -1;
+let lastSendMs = 0;
+const SEND_INTERVAL_MS = 50;
+
 function setup() {
   createCanvas(windowWidth, windowHeight);
   textFont("system-ui");
@@ -44,6 +48,7 @@ function draw() {
     drawChest(chest);
   }
 
+  updateArduinoHint();
   drawHud();
 }
 
@@ -85,6 +90,37 @@ function drawHud() {
   textSize(16);
   textAlign(LEFT, TOP);
   text("Win streak: " + streak, 12, 52);
+}
+
+function updateArduinoHint() {
+  const brightness = computeBrightnessForMouse();
+  sendBrightnessThrottled(brightness);
+}
+
+function computeBrightnessForMouse() {
+  if (!serial || !serial.isOpen()) return 0;
+  if (chests.length !== CHEST_COUNT) return 0;
+
+  const correctChest = chests[correctIndex];
+
+  // Only provide signal near the correct chest; wrong chests should keep LED off.
+  const d = dist(mouseX, mouseY, correctChest.x, correctChest.y);
+  const influenceRadius = correctChest.w * 1.2;
+  const t = constrain(1 - d / influenceRadius, 0, 1);
+  const eased = t * t;
+
+  return floor(255 * eased);
+}
+
+function sendBrightnessThrottled(brightness) {
+  const now = millis();
+  if (now - lastSendMs < SEND_INTERVAL_MS && brightness === lastSentBrightness) return;
+
+  if (serial && serial.isOpen()) {
+    serial.writeLine(String(brightness));
+    lastSentBrightness = brightness;
+    lastSendMs = now;
+  }
 }
 
 function drawChest(chest) {
