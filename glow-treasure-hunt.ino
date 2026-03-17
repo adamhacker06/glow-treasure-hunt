@@ -1,36 +1,36 @@
-/*
-  Blink
+const int LED_PIN = 9; // PWM pin for external LED (recommended: D9)
+const unsigned long BAUD = 115200;
 
-  Turns an LED on for one second, then off for one second, repeatedly.
+String lineBuffer = "";
 
-  Most Arduinos have an on-board LED you can control. 
-  On the UNO it is attached to digital pin 13
-
-  This example code is modified from.
-  https://www.arduino.cc/en/Tutorial/BuiltInExamples/Blink
-*/
-
-int intLED = 13;  // define a variable to hold the pin number of the internal LED
-int extLED = 12;  // define a variable to hold the pin number of the external LED
-
-// the setup function runs once when you press reset or power the board
 void setup() {
-  // initialize digital pin LED_BUILTIN as an output.
-  Serial.begin(9600);
-  pinMode(intLED, OUTPUT);
-  pinMode(extLED, OUTPUT);
+  Serial.begin(BAUD);
+  pinMode(LED_PIN, OUTPUT);
+  analogWrite(LED_PIN, 0);
 }
 
-// the loop function runs over and over again forever
-void loop() {
-  digitalWrite(intLED, HIGH);   // turn the intLED on (HIGH is the voltage level)
-  digitalWrite(extLED, LOW);   // turn the extLED off (LOW is the voltage level)
-  Serial.println("blink on");
-  delay(250);           
-              // wait for a second
-  digitalWrite(intLED, LOW);    // turn the intLED off by making the voltage LOW
-  digitalWrite(extLED, HIGH);   // turn the extLED on by making the voltage HIGH
+static int clampByte(int v) {
+  if (v < 0) return 0;
+  if (v > 255) return 255;
+  return v;
+}
 
-  Serial.println("blink off");
-  delay(250);                       // wait for a second
+void loop() {
+  while (Serial.available() > 0) {
+    char c = (char)Serial.read();
+
+    if (c == '\n') {
+      lineBuffer.trim();
+      if (lineBuffer.length() > 0) {
+        int brightness = clampByte(lineBuffer.toInt());
+        analogWrite(LED_PIN, brightness);
+      }
+      lineBuffer = "";
+    } else if (c != '\r') {
+      lineBuffer += c;
+      if (lineBuffer.length() > 16) {
+        lineBuffer = "";
+      }
+    }
+  }
 }
